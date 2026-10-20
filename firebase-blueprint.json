@@ -1,0 +1,180 @@
+{
+  "entities": {
+    "ReportRecord": {
+      "title": "ReportRecord",
+      "description": "Operational transaction or event record synced from a source system for reporting and aggregation.",
+      "type": "object",
+      "properties": {
+        "ownerId": {
+          "type": "string",
+          "description": "UID of the authenticated user who owns or synced this report record.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "sourceSystem": {
+          "type": "string",
+          "description": "Identifier of the external system or database module (e.g. ERP-SAP, POS-Branch, Shopee-OMS, CRM-Hub).",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "referenceCode": {
+          "type": "string",
+          "description": "Document or transaction reference number from the source system.",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "title": {
+          "type": "string",
+          "description": "Summary title or item description of the transaction.",
+          "minLength": 1,
+          "maxLength": 160
+        },
+        "category": {
+          "type": "string",
+          "description": "Report classification category.",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "department": {
+          "type": "string",
+          "description": "Department or branch associated with the record.",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "amount": {
+          "type": "number",
+          "description": "Monetary value in THB associated with the record."
+        },
+        "quantity": {
+          "type": "number",
+          "description": "Unit count or transaction volume."
+        },
+        "status": {
+          "type": "string",
+          "description": "Processing status of the record.",
+          "enum": ["completed", "pending", "cancelled"],
+          "minLength": 1,
+          "maxLength": 32
+        },
+        "recordDate": {
+          "type": "string",
+          "description": "Effective transaction date in YYYY-MM-DD format.",
+          "minLength": 10,
+          "maxLength": 10,
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when the record was ingested."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when the record was last updated."
+        }
+      },
+      "required": [
+        "ownerId",
+        "sourceSystem",
+        "referenceCode",
+        "title",
+        "category",
+        "department",
+        "amount",
+        "quantity",
+        "status",
+        "recordDate",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "ReportTemplate": {
+      "title": "ReportTemplate",
+      "description": "Saved report query configuration and filter preset for recurring cross-system reporting.",
+      "type": "object",
+      "properties": {
+        "ownerId": {
+          "type": "string",
+          "description": "UID of the user who created the report template.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "name": {
+          "type": "string",
+          "description": "Display name of the saved report template.",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "description": {
+          "type": "string",
+          "description": "Explanation of the report scope and purpose.",
+          "minLength": 0,
+          "maxLength": 300
+        },
+        "sourceSystemFilter": {
+          "type": "string",
+          "description": "Target source system filter or ALL.",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "categoryFilter": {
+          "type": "string",
+          "description": "Target category filter or ALL.",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "statusFilter": {
+          "type": "string",
+          "description": "Target status filter or ALL.",
+          "minLength": 1,
+          "maxLength": 32
+        },
+        "groupByField": {
+          "type": "string",
+          "description": "Dimension field used to aggregate the report.",
+          "enum": ["sourceSystem", "category", "department", "status", "recordDate"],
+          "minLength": 1,
+          "maxLength": 32
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when the template was created."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when the template was last updated."
+        }
+      },
+      "required": [
+        "ownerId",
+        "name",
+        "description",
+        "sourceSystemFilter",
+        "categoryFilter",
+        "statusFilter",
+        "groupByField",
+        "createdAt",
+        "updatedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/report_records/{recordId}": {
+      "schema": {
+        "$ref": "#/entities/ReportRecord"
+      },
+      "description": "Stores synced and imported operational records from connected systems for reporting."
+    },
+    "/report_templates/{templateId}": {
+      "schema": {
+        "$ref": "#/entities/ReportTemplate"
+      },
+      "description": "Stores user-defined report filter presets and aggregation configurations."
+    }
+  }
+}

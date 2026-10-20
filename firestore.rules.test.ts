@@ -1,0 +1,248 @@
+/**
+ * Firestore Security Rules Test Suite verifying that all "Dirty Dozen"
+ * adversarial payloads return PERMISSION_DENIED.
+ */
+
+export interface SecurityTestCase {
+  id: number;
+  name: string;
+  collection: 'report_records' | 'report_templates';
+  operation: 'get' | 'list' | 'create' | 'update' | 'delete';
+  docId: string;
+  auth: { uid: string; email_verified: boolean } | null;
+  existingData?: Record<string, unknown>;
+  incomingData?: Record<string, unknown>;
+  expectedResult: 'PERMISSION_DENIED';
+}
+
+export const DIRTY_DOZEN_TESTS: SecurityTestCase[] = [
+  {
+    id: 1,
+    name: 'Identity Spoofing on Create',
+    collection: 'report_records',
+    operation: 'create',
+    docId: 'rec_001',
+    auth: { uid: 'attacker_uid', email_verified: true },
+    incomingData: {
+      ownerId: 'victim_uid',
+      sourceSystem: 'ERP-SAP',
+      referenceCode: 'INV-001',
+      title: 'Spoofed Record',
+      category: 'Sales',
+      department: 'Finance',
+      amount: 1000,
+      quantity: 1,
+      status: 'pending',
+      recordDate: '2026-10-19',
+      createdAt: 'REQUEST_TIME',
+      updatedAt: 'REQUEST_TIME',
+    },
+    expectedResult: 'PERMISSION_DENIED',
+  },
+  {
+    id: 2,
+    name: 'Unverified Email Write',
+    collection: 'report_records',
+    operation: 'create',
+    docId: 'rec_002',
+    auth: { uid: 'user_1', email_verified: false },
+    incomingData: {
+      ownerId: 'user_1',
+      sourceSystem: 'ERP-SAP',
+      referenceCode: 'INV-002',
+      title: 'Unverified Record',
+      category: 'Sales',
+      department: 'Finance',
+      amount: 1000,
+      quantity: 1,
+      status: 'pending',
+      recordDate: '2026-10-19',
+      createdAt: 'REQUEST_TIME',
+      updatedAt: 'REQUEST_TIME',
+    },
+    expectedResult: 'PERMISSION_DENIED',
+  },
+  {
+    id: 3,
+    name: 'Shadow Field Injection on Create',
+    collection: 'report_records',
+    operation: 'create',
+    docId: 'rec_003',
+    auth: { uid: 'user_1', email_verified: true },
+    incomingData: {
+      ownerId: 'user_1',
+      sourceSystem: 'ERP-SAP',
+      referenceCode: 'INV-003',
+      title: 'Shadow Field Record',
+      category: 'Sales',
+      department: 'Finance',
+      amount: 1000,
+      quantity: 1,
+      status: 'pending',
+      recordDate: '2026-10-19',
+      createdAt: 'REQUEST_TIME',
+      updatedAt: 'REQUEST_TIME',
+      isAdmin: true,
+    },
+    expectedResult: 'PERMISSION_DENIED',
+  },
+  {
+    id: 4,
+    name: 'Shadow Field Injection on Update',
+    collection: 'report_records',
+    operation: 'update',
+    docId: 'rec_004',
+    auth: { uid: 'user_1', email_verified: true },
+    existingData: {
+      ownerId: 'user_1',
+      status: 'pending',
+      createdAt: 'EXISTING_TIME',
+    },
+    incomingData: {
+      ownerId: 'user_1',
+      status: 'completed',
+      createdAt: 'EXISTING_TIME',
+      updatedAt: 'REQUEST_TIME',
+      isVerified: true,
+    },
+    expectedResult: 'PERMISSION_DENIED',
+  },
+  {
+    id: 5,
+    name: 'ID Poisoning Attack',
+    collection: 'report_records',
+    operation: 'create',
+    docId: 'invalid$id!with*special*chars',
+    auth: { uid: 'user_1', email_verified: true },
+    incomingData: {
+      ownerId: 'user_1',
+    },
+    expectedResult: 'PERMISSION_DENIED',
+  },
+  {
+    id: 6,
+    name: 'Terminal State Mutation',
+    collection: 'report_records',
+    operation: 'update',
+    docId: 'rec_006',
+    auth: { uid: 'user_1', email_verified: true },
+    existingData: {
+      ownerId: 'user_1',
+      status: 'completed',
+      createdAt: 'EXISTING_TIME',
+    },
+    incomingData: {
+      ownerId: 'user_1',
+      status: 'pending',
+      createdAt: 'EXISTING_TIME',
+      updatedAt: 'REQUEST_TIME',
+    },
+    expectedResult: 'PERMISSION_DENIED',
+  },
+  {
+    id: 7,
+    name: 'Immortal Field Tampering (ownerId)',
+    collection: 'report_records',
+    operation: 'update',
+    docId: 'rec_007',
+    auth: { uid: 'user_1', email_verified: true },
+    existingData: {
+      ownerId: 'user_1',
+      status: 'pending',
+      createdAt: 'EXISTING_TIME',
+    },
+    incomingData: {
+      ownerId: 'user_2',
+      status: 'completed',
+      createdAt: 'EXISTING_TIME',
+      updatedAt: 'REQUEST_TIME',
+    },
+    expectedResult: 'PERMISSION_DENIED',
+  },
+  {
+    id: 8,
+    name: 'Immortal Field Tampering (createdAt)',
+    collection: 'report_records',
+    operation: 'update',
+    docId: 'rec_008',
+    auth: { uid: 'user_1', email_verified: true },
+    existingData: {
+      ownerId: 'user_1',
+      status: 'pending',
+      createdAt: '2026-10-01T00:00:00Z',
+    },
+    incomingData: {
+      ownerId: 'user_1',
+      status: 'completed',
+      createdAt: '2020-01-01T00:00:00Z',
+      updatedAt: 'REQUEST_TIME',
+    },
+    expectedResult: 'PERMISSION_DENIED',
+  },
+  {
+    id: 9,
+    name: 'Client Timestamp Forgery',
+    collection: 'report_records',
+    operation: 'create',
+    docId: 'rec_009',
+    auth: { uid: 'user_1', email_verified: true },
+    incomingData: {
+      ownerId: 'user_1',
+      createdAt: '2099-01-01T00:00:00Z',
+      updatedAt: '2099-01-01T00:00:00Z',
+    },
+    expectedResult: 'PERMISSION_DENIED',
+  },
+  {
+    id: 10,
+    name: 'Value Poisoning on Whitelisted Update Field',
+    collection: 'report_records',
+    operation: 'update',
+    docId: 'rec_010',
+    auth: { uid: 'user_1', email_verified: true },
+    existingData: {
+      ownerId: 'user_1',
+      status: 'pending',
+      amount: 500,
+    },
+    incomingData: {
+      ownerId: 'user_1',
+      status: 'invalid_enum_value',
+      amount: -99999,
+      updatedAt: 'REQUEST_TIME',
+    },
+    expectedResult: 'PERMISSION_DENIED',
+  },
+  {
+    id: 11,
+    name: 'Denial of Wallet String Overflow',
+    collection: 'report_templates',
+    operation: 'create',
+    docId: 'tpl_011',
+    auth: { uid: 'user_1', email_verified: true },
+    incomingData: {
+      ownerId: 'user_1',
+      name: 'A'.repeat(500),
+      description: 'Overflow name',
+      sourceSystemFilter: 'ALL',
+      categoryFilter: 'ALL',
+      statusFilter: 'ALL',
+      groupByField: 'sourceSystem',
+      createdAt: 'REQUEST_TIME',
+      updatedAt: 'REQUEST_TIME',
+    },
+    expectedResult: 'PERMISSION_DENIED',
+  },
+  {
+    id: 12,
+    name: 'Unauthorized Cross-Tenant List Query',
+    collection: 'report_records',
+    operation: 'list',
+    docId: 'rec_012',
+    auth: { uid: 'attacker_uid', email_verified: true },
+    existingData: {
+      ownerId: 'victim_uid',
+    },
+    expectedResult: 'PERMISSION_DENIED',
+  },
+];

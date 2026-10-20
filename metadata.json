@@ -1,0 +1,6 @@
+{
+  "name": "Cross-System Firebase Report Studio",
+  "description": "ระบบดึงและวิเคราะห์รายงานจากฐานข้อมูล Firebase ข้ามระบบ พร้อมตัวกรองหลายมิติ เทมเพลตรายงาน และการส่งออกข้อมูล CSV/JSON",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

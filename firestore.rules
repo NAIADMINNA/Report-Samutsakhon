@@ -1,0 +1,200 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global Safety Net: Default-deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Hardened Global Helpers
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedUser() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    // Validation Blueprint: ReportRecord
+    function isValidReportRecord(data) {
+      return data.keys().hasAll([
+          'ownerId',
+          'sourceSystem',
+          'referenceCode',
+          'title',
+          'category',
+          'department',
+          'amount',
+          'quantity',
+          'status',
+          'recordDate',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'ownerId',
+          'sourceSystem',
+          'referenceCode',
+          'title',
+          'category',
+          'department',
+          'amount',
+          'quantity',
+          'status',
+          'recordDate',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        data.ownerId is string &&
+        data.ownerId.size() >= 1 &&
+        data.ownerId.size() <= 128 &&
+        data.ownerId.matches('^[a-zA-Z0-9_\\-]+$') &&
+        data.ownerId == request.auth.uid &&
+        data.sourceSystem is string &&
+        data.sourceSystem.size() >= 1 &&
+        data.sourceSystem.size() <= 80 &&
+        data.referenceCode is string &&
+        data.referenceCode.size() >= 1 &&
+        data.referenceCode.size() <= 64 &&
+        data.title is string &&
+        data.title.size() >= 1 &&
+        data.title.size() <= 160 &&
+        data.category is string &&
+        data.category.size() >= 1 &&
+        data.category.size() <= 80 &&
+        data.department is string &&
+        data.department.size() >= 1 &&
+        data.department.size() <= 80 &&
+        data.amount is number &&
+        data.amount >= 0 &&
+        data.amount <= 1000000000 &&
+        data.quantity is number &&
+        data.quantity >= 0 &&
+        data.quantity <= 1000000 &&
+        data.status is string &&
+        data.status.size() >= 1 &&
+        data.status.size() <= 32 &&
+        data.status in ['completed', 'pending', 'cancelled'] &&
+        data.recordDate is string &&
+        data.recordDate.size() == 10 &&
+        data.recordDate.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$') &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    // Validation Blueprint: ReportTemplate
+    function isValidReportTemplate(data) {
+      return data.keys().hasAll([
+          'ownerId',
+          'name',
+          'description',
+          'sourceSystemFilter',
+          'categoryFilter',
+          'statusFilter',
+          'groupByField',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'ownerId',
+          'name',
+          'description',
+          'sourceSystemFilter',
+          'categoryFilter',
+          'statusFilter',
+          'groupByField',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        data.ownerId is string &&
+        data.ownerId.size() >= 1 &&
+        data.ownerId.size() <= 128 &&
+        data.ownerId.matches('^[a-zA-Z0-9_\\-]+$') &&
+        data.ownerId == request.auth.uid &&
+        data.name is string &&
+        data.name.size() >= 1 &&
+        data.name.size() <= 120 &&
+        data.description is string &&
+        data.description.size() >= 0 &&
+        data.description.size() <= 300 &&
+        data.sourceSystemFilter is string &&
+        data.sourceSystemFilter.size() >= 1 &&
+        data.sourceSystemFilter.size() <= 80 &&
+        data.categoryFilter is string &&
+        data.categoryFilter.size() >= 1 &&
+        data.categoryFilter.size() <= 80 &&
+        data.statusFilter is string &&
+        data.statusFilter.size() >= 1 &&
+        data.statusFilter.size() <= 32 &&
+        data.groupByField is string &&
+        data.groupByField.size() >= 1 &&
+        data.groupByField.size() <= 32 &&
+        data.groupByField in ['sourceSystem', 'category', 'department', 'status', 'recordDate'] &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    match /report_records/{recordId} {
+      allow get: if isSignedIn() && isValidId(recordId) && existing().ownerId == request.auth.uid;
+      allow list: if isSignedIn() && existing().ownerId == request.auth.uid;
+      allow create: if isVerifiedUser() &&
+        isValidId(recordId) &&
+        isValidReportRecord(incoming()) &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+      allow update: if isVerifiedUser() &&
+        isValidId(recordId) &&
+        isValidReportRecord(incoming()) &&
+        existing().ownerId == request.auth.uid &&
+        incoming().ownerId == existing().ownerId &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        existing().status == 'pending' &&
+        (
+          incoming().diff(existing()).affectedKeys().hasOnly(['title', 'category', 'department', 'amount', 'quantity', 'recordDate', 'updatedAt']) ||
+          incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt'])
+        );
+      allow delete: if isVerifiedUser() && isValidId(recordId) && existing().ownerId == request.auth.uid;
+    }
+
+    match /report_templates/{templateId} {
+      allow get: if isSignedIn() && isValidId(templateId) && existing().ownerId == request.auth.uid;
+      allow list: if isSignedIn() && existing().ownerId == request.auth.uid;
+      allow create: if isVerifiedUser() &&
+        isValidId(templateId) &&
+        isValidReportTemplate(incoming()) &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+      allow update: if isVerifiedUser() &&
+        isValidId(templateId) &&
+        isValidReportTemplate(incoming()) &&
+        existing().ownerId == request.auth.uid &&
+        incoming().ownerId == existing().ownerId &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        incoming().diff(existing()).affectedKeys().hasOnly([
+          'name',
+          'description',
+          'sourceSystemFilter',
+          'categoryFilter',
+          'statusFilter',
+          'groupByField',
+          'updatedAt'
+        ]);
+      allow delete: if isVerifiedUser() && isValidId(templateId) && existing().ownerId == request.auth.uid;
+    }
+  }
+}
