@@ -323,43 +323,57 @@ export const DoeReportPoster: React.FC<DoeReportPosterProps> = ({
     const el = posterRef.current;
     if (!el) throw new Error('Poster element not found');
 
-    const captureWidth = el.offsetWidth || 840;
-    const captureHeight = el.offsetHeight || 1188;
-    const captureStyle: Partial<CSSStyleDeclaration> = {
-      margin: '0px',
-      marginLeft: '0px',
-      marginRight: '0px',
-      marginTop: '0px',
-      marginBottom: '0px',
-      transform: 'none',
-      width: `${captureWidth}px`,
-      maxWidth: `${captureWidth}px`,
-      minWidth: `${captureWidth}px`,
-      boxSizing: 'border-box',
-    };
+    // Temporarily lock element width to 880px so the captured layout has ideal A4 portrait proportions
+    const prevWidth = el.style.width;
+    const prevMaxWidth = el.style.maxWidth;
+    const prevMinWidth = el.style.minWidth;
+    el.style.width = '880px';
+    el.style.maxWidth = '880px';
+    el.style.minWidth = '880px';
 
     let rawCanvas: HTMLCanvasElement;
     try {
-      rawCanvas = await toCanvas(el, {
-        cacheBust: true,
-        pixelRatio: 2,
-        width: captureWidth,
-        height: captureHeight,
-        style: captureStyle,
-        backgroundColor: '#eef6ff',
-      });
-    } catch {
-      // Fallback with skipFonts if external Google Fonts stylesheet triggers CORS
-      rawCanvas = await toCanvas(el, {
-        cacheBust: true,
-        pixelRatio: 2,
-        width: captureWidth,
-        height: captureHeight,
-        style: captureStyle,
-        backgroundColor: '#eef6ff',
-        skipFonts: true,
-        fontEmbedCSS: '',
-      });
+      const captureWidth = el.offsetWidth || 880;
+      const captureHeight = el.offsetHeight || 1244;
+      const captureStyle: Partial<CSSStyleDeclaration> = {
+        margin: '0px',
+        marginLeft: '0px',
+        marginRight: '0px',
+        marginTop: '0px',
+        marginBottom: '0px',
+        transform: 'none',
+        width: `${captureWidth}px`,
+        maxWidth: `${captureWidth}px`,
+        minWidth: `${captureWidth}px`,
+        boxSizing: 'border-box',
+      };
+
+      try {
+        rawCanvas = await toCanvas(el, {
+          cacheBust: true,
+          pixelRatio: 2,
+          width: captureWidth,
+          height: captureHeight,
+          style: captureStyle,
+          backgroundColor: '#eef6ff',
+        });
+      } catch {
+        // Fallback with skipFonts if external Google Fonts stylesheet triggers CORS
+        rawCanvas = await toCanvas(el, {
+          cacheBust: true,
+          pixelRatio: 2,
+          width: captureWidth,
+          height: captureHeight,
+          style: captureStyle,
+          backgroundColor: '#eef6ff',
+          skipFonts: true,
+          fontEmbedCSS: '',
+        });
+      }
+    } finally {
+      el.style.width = prevWidth;
+      el.style.maxWidth = prevMaxWidth;
+      el.style.minWidth = prevMinWidth;
     }
 
     // Standard A4 Portrait dimensions (210mm x 297mm -> 1 : 1.4142857)
@@ -707,10 +721,10 @@ export const DoeReportPoster: React.FC<DoeReportPosterProps> = ({
       )}
 
       {/* OFFICIAL DOE EXECUTIVE SUMMARY REPORT POSTER CANVAS */}
-      <div className="overflow-x-auto flex justify-center">
+      <div className="overflow-x-auto w-full">
         <div
           ref={posterRef}
-          className="a4-poster-sheet m-0 w-[840px] max-w-[840px] min-w-[840px] shrink-0 rounded-[28px] p-7 sm:p-8 text-slate-900 shadow-sm border border-sky-100"
+          className="a4-poster-sheet m-0 w-full min-w-[760px] rounded-[28px] p-7 sm:p-8 text-slate-900 shadow-sm border border-sky-100"
           style={{
             background:
               'linear-gradient(180deg, #eef6ff 0%, #f6fbff 35%, #f8fafc 100%)',

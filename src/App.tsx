@@ -1825,7 +1825,7 @@ export default function App() {
       )}
 
       {/* Main Content Container */}
-      <main className="flex-1 max-w-[1280px] w-full mx-auto px-4 sm:px-6 py-5">
+      <main className="flex-1 w-full px-3 sm:px-6 py-4">
         <>
           {activeTab === 'external' && (
               <div className="space-y-5">
