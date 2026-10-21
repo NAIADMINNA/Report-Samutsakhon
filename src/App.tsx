@@ -58,6 +58,7 @@ import {
   OperationType,
   parseFirestoreEndpoint,
   subscribeExternalFirestoreReports,
+  subscribeExternalPosterMeta,
 } from './firebase';
 import {
   AggregatedRow,
@@ -82,6 +83,8 @@ import {
   aggregateDoePosters,
   CustomDoeFieldMap,
   DoePosterReportData,
+  ExternalCategoryMeta,
+  ExternalQueueMetricMeta,
   mapFirestoreDocToDoePoster,
   SAMPLE_13_DOE_REPORTS,
   SAMPLE_DOE_POSTER_DATA,
@@ -174,6 +177,12 @@ export default function App() {
   const [customDoeFieldMap, setCustomDoeFieldMap] = useState<CustomDoeFieldMap>(
     {}
   );
+  const [liveCategories, setLiveCategories] = useState<ExternalCategoryMeta[]>(
+    []
+  );
+  const [liveQueueMetrics, setLiveQueueMetrics] = useState<
+    ExternalQueueMetricMeta[]
+  >([]);
   const [selectedDoeDocId, setSelectedDoeDocId] = useState<string>('');
   const [selectedRawDoc, setSelectedRawDoc] = useState<Record<
     string,
@@ -349,7 +358,7 @@ export default function App() {
 
   // Auto-update in real-time via Firestore onSnapshot listener without requiring manual button clicks
   useEffect(() => {
-    const unsub = subscribeExternalFirestoreReports(
+    const unsubReports = subscribeExternalFirestoreReports(
       externalUrl,
       externalDbId,
       externalCollection,
@@ -361,7 +370,16 @@ export default function App() {
         handleFetchExternalDatabase();
       }
     );
-    return () => unsub();
+    const unsubMeta = subscribeExternalPosterMeta(
+      externalUrl,
+      externalDbId,
+      (cats) => setLiveCategories(cats),
+      (metrics) => setLiveQueueMetrics(metrics)
+    );
+    return () => {
+      unsubReports();
+      unsubMeta();
+    };
   }, [externalUrl, externalDbId, externalCollection]);
 
   // Discover columns and detailed schema profile from external documents
@@ -479,21 +497,28 @@ export default function App() {
   // Map every filtered document in `reports` into the Official DOE Executive Summary Report Poster format
   const liveDoePostersList = useMemo<DoePosterReportData[]>(() => {
     return extractedPosters.map((p) =>
-      mapFirestoreDocToDoePoster(p.rawDoc, p.primaryImageUrl, customDoeFieldMap)
+      mapFirestoreDocToDoePoster(
+        p.rawDoc,
+        p.primaryImageUrl,
+        customDoeFieldMap,
+        liveCategories
+      )
     );
-  }, [extractedPosters, customDoeFieldMap]);
+  }, [extractedPosters, customDoeFieldMap, liveCategories]);
 
   // Use live database documents if present; otherwise provide the Samut Sakhon dataset
   const baseDoeDataset = useMemo<DoePosterReportData[]>(() => {
     const rawList =
       liveDoePostersList.length > 0
         ? liveDoePostersList
-        : customDoeFieldMap && Object.keys(customDoeFieldMap).length > 0
+        : (customDoeFieldMap && Object.keys(customDoeFieldMap).length > 0) ||
+          liveCategories.length > 0
         ? SAMPLE_13_DOE_REPORTS.map((p) =>
             mapFirestoreDocToDoePoster(
               p.rawDoc,
               p.embeddedImageUrl,
-              customDoeFieldMap
+              customDoeFieldMap,
+              liveCategories
             )
           )
         : SAMPLE_13_DOE_REPORTS;
@@ -505,7 +530,7 @@ export default function App() {
     return [...filtered].sort((a, b) =>
       String(b.reportDateRaw || '').localeCompare(String(a.reportDateRaw || ''))
     );
-  }, [liveDoePostersList, customDoeFieldMap]);
+  }, [liveDoePostersList, customDoeFieldMap, liveCategories]);
 
   // Reset date filter if live database documents arrive and don't match the initial sample filter
   useEffect(() => {
@@ -605,9 +630,17 @@ export default function App() {
         selectedDateThai: doeDateFilter,
         selectedRegion: doeRegionFilter,
         selectedProvince: doeProvinceFilter,
-      }
+      },
+      liveCategories
     );
-  }, [doePostersList, baseDoeDataset, doeDateFilter, doeRegionFilter, doeProvinceFilter]);
+  }, [
+    doePostersList,
+    baseDoeDataset,
+    doeDateFilter,
+    doeRegionFilter,
+    doeProvinceFilter,
+    liveCategories,
+  ]);
 
   // Currently selected individual DOE Poster
   const activeSingleDoePoster = useMemo<DoePosterReportData>(() => {
@@ -2019,6 +2052,7 @@ export default function App() {
                           onInspectJson={(raw) => setSelectedRawDoc(raw)}
                           customFieldMap={customDoeFieldMap}
                           onUpdateCustomFieldMap={setCustomDoeFieldMap}
+                          liveQueueMetrics={liveQueueMetrics}
                         />
                       ))}
                     </div>
@@ -2028,6 +2062,7 @@ export default function App() {
                       onInspectJson={(raw) => setSelectedRawDoc(raw)}
                       customFieldMap={customDoeFieldMap}
                       onUpdateCustomFieldMap={setCustomDoeFieldMap}
+                      liveQueueMetrics={liveQueueMetrics}
                     />
                   ) : (
                     <DoeReportPoster
@@ -2035,6 +2070,7 @@ export default function App() {
                       onInspectJson={(raw) => setSelectedRawDoc(raw)}
                       customFieldMap={customDoeFieldMap}
                       onUpdateCustomFieldMap={setCustomDoeFieldMap}
+                      liveQueueMetrics={liveQueueMetrics}
                     />
                   )}
                 </section>

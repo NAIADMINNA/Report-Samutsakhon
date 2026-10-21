@@ -196,6 +196,93 @@ export function subscribeExternalFirestoreReports(
   return unsub;
 }
 
+export function subscribeExternalPosterMeta(
+  endpointUrl: string,
+  customDbId: string | undefined,
+  onCategoriesUpdate: (
+    categories: {
+      id: string;
+      title: string;
+      subLabel: string;
+      sortOrder: number;
+      color?: string;
+      icon?: string;
+    }[]
+  ) => void,
+  onQueueMetricsUpdate?: (
+    metrics: {
+      id: string;
+      title: string;
+      subLabel: string;
+      unit: string;
+      sortOrder: number;
+    }[]
+  ) => void
+): () => void {
+  const parsed = parseFirestoreEndpoint(endpointUrl, customDbId, 'reports');
+  if (customDbId && customDbId.trim()) {
+    parsed.databaseId = customDbId.trim();
+  }
+  const targetDb = getExternalFirestore(parsed.databaseId);
+
+  const unsubCategories = onSnapshot(
+    collection(targetDb, 'categories'),
+    (snap) => {
+      if (snap.empty) return;
+      const cats = snap.docs
+        .map((d) => {
+          const data = d.data();
+          return {
+            id: String(data.id || d.id),
+            title: String(data.title || ''),
+            subLabel: String(data.subLabel || ''),
+            sortOrder:
+              typeof data.sortOrder === 'number' ? data.sortOrder : 99,
+            color: typeof data.color === 'string' ? data.color : undefined,
+            icon: typeof data.icon === 'string' ? data.icon : undefined,
+          };
+        })
+        .sort((a, b) => a.sortOrder - b.sortOrder);
+      onCategoriesUpdate(cats);
+    },
+    () => {
+      // Fallback to static defaults if categories collection is not readable
+    }
+  );
+
+  let unsubMetrics: (() => void) | null = null;
+  if (onQueueMetricsUpdate) {
+    unsubMetrics = onSnapshot(
+      collection(targetDb, 'queue_metrics'),
+      (snap) => {
+        if (snap.empty) return;
+        const metrics = snap.docs
+          .map((d) => {
+            const data = d.data();
+            return {
+              id: String(data.id || d.id),
+              title: String(data.title || ''),
+              subLabel: String(data.subLabel || ''),
+              unit: String(data.unit || ''),
+              sortOrder:
+                typeof data.sortOrder === 'number' ? data.sortOrder : 99,
+            };
+          })
+          .sort((a, b) => a.sortOrder - b.sortOrder);
+        onQueueMetricsUpdate(metrics);
+      },
+      () => {
+        // Fallback to static defaults if queue_metrics is not readable
+      }
+    );
+  }
+
+  return () => {
+    unsubCategories();
+    if (unsubMetrics) unsubMetrics();
+  };
+}
+
 export async function fetchExternalFirestoreReports(
   endpointUrl: string,
   customDbId?: string,

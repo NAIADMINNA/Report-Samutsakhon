@@ -93,6 +93,23 @@ export interface DoePosterReportData {
   rawDoc: Record<string, unknown>;
 }
 
+export interface ExternalCategoryMeta {
+  id: string;
+  title: string;
+  subLabel: string;
+  sortOrder: number;
+  color?: string;
+  icon?: string;
+}
+
+export interface ExternalQueueMetricMeta {
+  id: string;
+  title: string;
+  subLabel: string;
+  unit: string;
+  sortOrder: number;
+}
+
 export const DEFAULT_DOE_GROUPS_META: Omit<
   DoeTargetGroupItem,
   'count' | 'percent'
@@ -118,8 +135,8 @@ export const DEFAULT_DOE_GROUPS_META: Omit<
   },
   {
     id: 4,
-    title: '4. กลุ่มมาตรา 63/1',
-    subtitle: 'บุคคลที่ไม่มีสัญชาติไทย (1) (2) (3) และ (4)',
+    title: '4. มาตรา 63และกลุ่มมาตรา 63/1',
+    subtitle: 'ผู้ลี้ภัยจากการสู้รับ , บุคคลไม่มีสัญชาติไทย (1) (2) (3) และ (4)',
     theme: 'indigo',
   },
   {
@@ -136,7 +153,7 @@ export const DEFAULT_DOE_GROUPS_META: Omit<
   },
   {
     id: 7,
-    title: '7. เปลี่ยนแปลงรายการใบอนุญาต...',
+    title: '7. เปลี่ยนแปลงรายการใบอนุญาตทำงาน',
     subtitle: 'เปลี่ยนตำแหน่งงาน / ชื่อ- สกุล',
     theme: 'emerald',
   },
@@ -147,6 +164,35 @@ export const DEFAULT_DOE_GROUPS_META: Omit<
     theme: 'rose',
   },
 ];
+
+export function buildDynamicGroupsMeta(
+  liveCategories?: ExternalCategoryMeta[]
+): Omit<DoeTargetGroupItem, 'count' | 'percent'>[] {
+  if (!liveCategories || liveCategories.length === 0) {
+    return DEFAULT_DOE_GROUPS_META;
+  }
+  const sorted = [...liveCategories].sort(
+    (a, b) => (a.sortOrder ?? 99) - (b.sortOrder ?? 99)
+  );
+  return DEFAULT_DOE_GROUPS_META.map((defaultMeta, idx) => {
+    const liveCat =
+      sorted.find((c) => c.sortOrder === idx) || sorted[idx];
+    if (!liveCat || !liveCat.title) return defaultMeta;
+    const rawTitle = liveCat.title.trim();
+    const numberedTitle = /^\d+\./.test(rawTitle)
+      ? rawTitle
+      : `${idx + 1}. ${rawTitle}`;
+    const rawSub =
+      typeof liveCat.subLabel === 'string' && liveCat.subLabel.trim()
+        ? liveCat.subLabel.trim()
+        : defaultMeta.subtitle;
+    return {
+      ...defaultMeta,
+      title: numberedTitle,
+      subtitle: rawSub,
+    };
+  });
+}
 
 const THAI_DAYS = [
   'วันอาทิตย์',
@@ -1969,7 +2015,8 @@ function extractEightGroupCounts(
 export function mapFirestoreDocToDoePoster(
   rawDoc: Record<string, unknown>,
   embeddedImageUrl: string | null = null,
-  customMap?: CustomDoeFieldMap
+  customMap?: CustomDoeFieldMap,
+  liveCategories?: ExternalCategoryMeta[]
 ): DoePosterReportData {
   const flat = flattenDocumentDeep(rawDoc);
   const docId = String(rawDoc.id || 'DOE-REPORT');
@@ -2753,7 +2800,8 @@ export function mapFirestoreDocToDoePoster(
       ? Math.max(1, Math.round((spoiledCards / spoiledBase) * 100))
       : 0;
 
-  const groups: DoeTargetGroupItem[] = DEFAULT_DOE_GROUPS_META.map(
+  const dynamicGroupsMeta = buildDynamicGroupsMeta(liveCategories);
+  const groups: DoeTargetGroupItem[] = dynamicGroupsMeta.map(
     (meta, idx) => {
       const c = finalEightCounts[idx] || 0;
       const pct =
@@ -2870,7 +2918,8 @@ export interface DoeFilterContext {
  */
 export function aggregateDoePosters(
   posters: DoePosterReportData[],
-  filterContext?: DoeFilterContext
+  filterContext?: DoeFilterContext,
+  liveCategories?: ExternalCategoryMeta[]
 ): DoePosterReportData {
   if (posters.length === 0) {
     return SAMPLE_DOE_POSTER_DATA;
@@ -2920,7 +2969,8 @@ export function aggregateDoePosters(
       ? Math.min(100, Math.round((completedCards / totalAppointments) * 100))
       : 100;
 
-  const groups: DoeTargetGroupItem[] = DEFAULT_DOE_GROUPS_META.map(
+  const dynamicGroupsMeta = buildDynamicGroupsMeta(liveCategories);
+  const groups: DoeTargetGroupItem[] = dynamicGroupsMeta.map(
     (meta, idx) => {
       const c = groupSums[idx] || 0;
       const pct =

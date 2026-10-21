@@ -28,6 +28,7 @@ import {
   DEFAULT_DOE_GROUPS_META,
   DoePosterReportData,
   DoeTargetGroupItem,
+  ExternalQueueMetricMeta,
   listNumericFieldsInDoc,
 } from '../doePosterUtils';
 import { DOE_EMBLEM_BASE64 } from '../doeEmblem';
@@ -38,6 +39,7 @@ interface DoeReportPosterProps {
   compact?: boolean;
   customFieldMap?: CustomDoeFieldMap;
   onUpdateCustomFieldMap?: (nextMap: CustomDoeFieldMap) => void;
+  liveQueueMetrics?: ExternalQueueMetricMeta[];
 }
 
 interface ManualNumericOverrides {
@@ -210,7 +212,15 @@ export const DoeReportPoster: React.FC<DoeReportPosterProps> = ({
   compact = false,
   customFieldMap,
   onUpdateCustomFieldMap,
+  liveQueueMetrics,
 }) => {
+  const metricMap = useMemo(() => {
+    const map = new Map<string, ExternalQueueMetricMeta>();
+    (liveQueueMetrics || []).forEach((m) => {
+      if (m.id) map.set(m.id, m);
+    });
+    return map;
+  }, [liveQueueMetrics]);
   const posterRef = useRef<HTMLDivElement>(null);
   const [exportingPng, setExportingPng] = useState(false);
   const [exportingPdf, setExportingPdf] = useState(false);
@@ -660,14 +670,14 @@ export const DoeReportPoster: React.FC<DoeReportPosterProps> = ({
                   >
                     <div className="flex items-center justify-between gap-1">
                       <span className="text-[11px] font-bold text-slate-800 truncate">
-                        {meta.title}
+                        {groupItem?.title || meta.title}
                       </span>
                       <span className="text-[10px] font-mono text-blue-600 truncate max-w-[85px]">
                         {matchedField || 'auto'}
                       </span>
                     </div>
                     <p className="text-[10px] text-slate-500 truncate">
-                      {meta.subtitle}
+                      {groupItem?.subtitle || meta.subtitle}
                     </p>
                     <div className="flex items-center gap-1.5">
                       <input
@@ -920,7 +930,7 @@ export const DoeReportPoster: React.FC<DoeReportPosterProps> = ({
             <div className="bg-white rounded-2xl p-4 border border-slate-200 flex flex-col justify-between shadow-2xs">
               <div className="flex items-center justify-between gap-2 mb-3">
                 <span className="text-sm font-extrabold text-slate-800">
-                  บัตรเสีย
+                  {metricMap.get('cardsNotIssued')?.title || 'บัตรเสีย'}
                 </span>
                 <div className="w-9 h-9 rounded-xl bg-slate-700 text-white flex items-center justify-center shrink-0">
                   <XCircle className="w-5 h-5" />
@@ -930,11 +940,14 @@ export const DoeReportPoster: React.FC<DoeReportPosterProps> = ({
                 <span className="text-3xl font-black text-slate-800 font-mono tabular-nums">
                   {effectiveData.spoiledCards.toLocaleString('th-TH')}
                 </span>
-                <span className="text-xs font-bold text-slate-500">คน</span>
+                <span className="text-xs font-bold text-slate-500">
+                  {metricMap.get('cardsNotIssued')?.unit || 'ใบ'}
+                </span>
               </div>
               <div>
                 <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-slate-200/80 text-slate-700 text-xs font-bold">
-                  บัตรเสีย {effectiveData.spoiledPercent}%
+                  {metricMap.get('cardsNotIssued')?.title || 'บัตรเสีย'}{' '}
+                  {effectiveData.spoiledPercent}%
                 </span>
               </div>
             </div>
@@ -988,9 +1001,9 @@ export const DoeReportPoster: React.FC<DoeReportPosterProps> = ({
                         >
                           {renderGroupIcon(group.id)}
                         </div>
-                        <div className="min-w-0">
+                        <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className="text-sm font-extrabold text-slate-900 truncate">
+                            <span className="text-sm font-extrabold text-slate-900 leading-snug">
                               {group.title}
                             </span>
                             {group.isHot && (
@@ -1000,7 +1013,7 @@ export const DoeReportPoster: React.FC<DoeReportPosterProps> = ({
                             )}
                           </div>
                           <p
-                            className={`text-[11px] font-medium truncate mt-0.5 ${
+                            className={`text-[11px] font-medium leading-snug mt-0.5 ${
                               isActive ? 'text-blue-700' : 'text-slate-500'
                             }`}
                           >
