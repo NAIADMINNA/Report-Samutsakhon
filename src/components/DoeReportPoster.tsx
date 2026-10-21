@@ -30,6 +30,7 @@ import {
   DoeTargetGroupItem,
   listNumericFieldsInDoc,
 } from '../doePosterUtils';
+import { DOE_EMBLEM_BASE64 } from '../doeEmblem';
 
 interface DoeReportPosterProps {
   data: DoePosterReportData;
@@ -722,7 +723,7 @@ export const DoeReportPoster: React.FC<DoeReportPosterProps> = ({
               {/* Official DOE Emblem Box */}
               <div className="w-20 h-20 rounded-2xl bg-white border border-slate-200/90 shadow-xs flex items-center justify-center p-1.5 shrink-0 relative overflow-hidden">
                 <img
-                  src="/assets/aistudio/images_bce5873a.png"
+                  src={DOE_EMBLEM_BASE64}
                   alt="ตราสัญลักษณ์กรมการจัดหางาน"
                   className="w-full h-full object-contain"
                 />

@@ -2828,7 +2828,7 @@ export function mapFirestoreDocToDoePoster(
     departmentEng: 'DEPARTMENT OF EMPLOYMENT',
     departmentThai: 'กรมการจัดหางาน กระทรวงแรงงาน',
     provincialOffice,
-    officeSubtitleEng: 'One Stop Service Center for Visa and Work Permit',
+    officeSubtitleEng: 'Samut Sakhon Provincial Employment Office',
     headerRightSubtitle: 'ศูนย์บริการใบอนุญาตทำงานประจำพื้นที่',
     executivePillText: 'EXECUTIVE SUMMARY REPORT · เรียน อธิบดี / ผู้บริหาร',
     reportMainTitle,
