@@ -173,11 +173,43 @@ export function subscribeExternalFirestoreReports(
   parsed.restUrl = `https://firestore.googleapis.com/v1/projects/${parsed.projectId}/databases/${parsed.databaseId}/documents/${parsed.collectionPath}`;
 
   const targetDb = getExternalFirestore(parsed.databaseId);
-  const q = query(collection(targetDb, parsed.collectionPath), limit(250));
+  const colRef = collection(targetDb, parsed.collectionPath);
+  const primaryQuery =
+    parsed.collectionPath === 'reports'
+      ? query(
+          colRef,
+          where('officeName', '==', 'สำนักงานจัดหางานจังหวัดสมุทรสาคร')
+        )
+      : colRef;
+
+  let fallbackUnsub: (() => void) | null = null;
 
   const unsub = onSnapshot(
-    q,
+    primaryQuery,
     (snap) => {
+      if (snap.empty && parsed.collectionPath === 'reports' && !fallbackUnsub) {
+        fallbackUnsub = onSnapshot(
+          colRef,
+          (allSnap) => {
+            onUpdate({
+              documents: allSnap.docs.map((d) =>
+                normalizeSdkDocData(d.id, d.data())
+              ),
+              strategyUsed:
+                'อัปเดตอัตโนมัติแบบ Real-time ผ่าน Firebase SDK (onSnapshot)',
+              parsedEndpoint: parsed,
+              triedStrategies: [
+                `SDK Real-time Listener: db(${parsed.databaseId}) -> collection("${parsed.collectionPath}")`,
+              ],
+            });
+          },
+          () => {
+            if (onFallbackNeeded) onFallbackNeeded();
+          }
+        );
+        return;
+      }
+
       onUpdate({
         documents: snap.docs.map((d) => normalizeSdkDocData(d.id, d.data())),
         strategyUsed:
@@ -193,7 +225,10 @@ export function subscribeExternalFirestoreReports(
     }
   );
 
-  return unsub;
+  return () => {
+    unsub();
+    if (fallbackUnsub) fallbackUnsub();
+  };
 }
 
 export function subscribeExternalPosterMeta(
@@ -308,13 +343,31 @@ export async function fetchExternalFirestoreReports(
 
   const targetDb = getExternalFirestore(parsed.databaseId);
 
-  // Strategy 1: Direct Firestore SDK Collection Query
+  // Strategy 1: Direct Firestore SDK Collection Query (filtered to Samut Sakhon when querying reports)
   try {
     triedStrategies.push(
       `SDK Direct Query: db(${parsed.databaseId}) -> collection("${parsed.collectionPath}")`
     );
-    const q = query(collection(targetDb, parsed.collectionPath), limit(250));
-    const snap = await getDocs(q);
+    const colRef = collection(targetDb, parsed.collectionPath);
+    if (parsed.collectionPath === 'reports') {
+      const samutQuery = query(
+        colRef,
+        where('officeName', '==', 'สำนักงานจัดหางานจังหวัดสมุทรสาคร')
+      );
+      const samutSnap = await getDocs(samutQuery);
+      if (!samutSnap.empty) {
+        return {
+          documents: samutSnap.docs.map((d) =>
+            normalizeSdkDocData(d.id, d.data())
+          ),
+          strategyUsed:
+            'เชื่อมต่อผ่าน Firebase SDK โดยตรง (Direct Collection Query)',
+          parsedEndpoint: parsed,
+          triedStrategies,
+        };
+      }
+    }
+    const snap = await getDocs(colRef);
     return {
       documents: snap.docs.map((d) => normalizeSdkDocData(d.id, d.data())),
       strategyUsed: 'เชื่อมต่อผ่าน Firebase SDK โดยตรง (Direct Collection Query)',

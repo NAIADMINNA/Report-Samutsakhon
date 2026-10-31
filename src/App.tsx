@@ -1695,67 +1695,69 @@ export default function App() {
   return (
     <div className="min-h-screen flex flex-col bg-slate-100/80 text-slate-900">
       {/* Clean, Streamlined Top Bar */}
-      <header className="no-print flex items-center justify-between gap-4 px-4 sm:px-6 py-3 bg-white border-b border-slate-200 sticky top-0 z-20 shadow-2xs">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="w-9 h-9 rounded-lg bg-blue-600 text-white flex items-center justify-center font-bold text-sm shrink-0">
-            DOE
-          </div>
-          <div className="min-w-0">
-            <h1 className="text-sm sm:text-base font-bold tracking-tight text-slate-900 truncate">
-              ระบบรายงานผลการปฏิบัติงานศูนย์บริการใบอนุญาตทำงานคนต่างด้าว
-            </h1>
-            <div className="flex items-center gap-2 text-[11px] text-slate-500 truncate">
-              <span>กรมการจัดหางาน</span>
-              <span aria-hidden="true">·</span>
-              <span>
-                ข้อมูลรายงานทั้งหมด{' '}
-                <strong className="font-mono text-slate-800">
-                  {baseDoeDataset.length}
-                </strong>{' '}
-                รายการ
-              </span>
+      <header className="no-print bg-white border-b border-slate-200 sticky top-0 z-20 shadow-2xs">
+        <div className="max-w-5xl mx-auto w-full flex items-center justify-between gap-4 px-4 sm:px-6 py-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-9 h-9 rounded-lg bg-blue-600 text-white flex items-center justify-center font-bold text-sm shrink-0">
+              DOE
+            </div>
+            <div className="min-w-0">
+              <h1 className="text-sm sm:text-base font-bold tracking-tight text-slate-900 truncate">
+                ระบบรายงานผลการปฏิบัติงานศูนย์บริการใบอนุญาตทำงานคนต่างด้าว
+              </h1>
+              <div className="flex items-center gap-2 text-[11px] text-slate-500 truncate">
+                <span>กรมการจัดหางาน</span>
+                <span aria-hidden="true">·</span>
+                <span>
+                  ข้อมูลรายงานทั้งหมด{' '}
+                  <strong className="font-mono text-slate-800">
+                    {baseDoeDataset.length}
+                  </strong>{' '}
+                  รายการ
+                </span>
+              </div>
             </div>
           </div>
-        </div>
 
-        <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
-          <button
-            type="button"
-            onClick={handleFetchExternalDatabase}
-            disabled={externalLoading}
-            title="ระบบซิงค์ข้อมูลแบบ Real-time อัตโนมัติเมื่อฐานข้อมูลมีการเปลี่ยนแปลง (คลิกเพื่อรีเฟรชด้วยตนเอง)"
-            className="px-3.5 py-2 text-xs font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors flex items-center gap-1.5 cursor-pointer"
-          >
-            <RefreshCw
-              className={`w-3.5 h-3.5 ${externalLoading ? 'animate-spin' : ''}`}
-            />
-            <span>
-              {externalLoading
-                ? 'กำลังซิงค์ข้อมูล...'
-                : 'ซิงค์อัตโนมัติ (Real-time)'}
-            </span>
-          </button>
+          <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
+            <button
+              type="button"
+              onClick={handleFetchExternalDatabase}
+              disabled={externalLoading}
+              title="ระบบซิงค์ข้อมูลแบบ Real-time อัตโนมัติเมื่อฐานข้อมูลมีการเปลี่ยนแปลง (คลิกเพื่อรีเฟรชด้วยตนเอง)"
+              className="px-3.5 py-2 text-xs font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors flex items-center gap-1.5 cursor-pointer"
+            >
+              <RefreshCw
+                className={`w-3.5 h-3.5 ${externalLoading ? 'animate-spin' : ''}`}
+              />
+              <span>
+                {externalLoading
+                  ? 'กำลังซิงค์ข้อมูล...'
+                  : 'ซิงค์อัตโนมัติ (Real-time)'}
+              </span>
+            </button>
 
-          <button
-            type="button"
-            onClick={() => {
-              if (showDbSettings) {
-                setShowDbSettings(false);
-              } else {
-                setDbPasscodeInput('');
-                setDbPasscodeError(null);
-                setShowDbPasscodeModal(true);
-              }
-            }}
-            className={`px-3 py-2 text-xs font-semibold rounded-lg border transition-colors flex items-center gap-1.5 cursor-pointer ${
-              showDbSettings
-                ? 'bg-slate-900 text-white border-slate-900'
-                : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
-            }`}
-          >
-            <Database className="w-3.5 h-3.5" />
-            <span className="hidden md:inline">ตั้งค่าฐานข้อมูล</span>
-          </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (showDbSettings) {
+                  setShowDbSettings(false);
+                } else {
+                  setDbPasscodeInput('');
+                  setDbPasscodeError(null);
+                  setShowDbPasscodeModal(true);
+                }
+              }}
+              className={`px-3 py-2 text-xs font-semibold rounded-lg border transition-colors flex items-center gap-1.5 cursor-pointer ${
+                showDbSettings
+                  ? 'bg-slate-900 text-white border-slate-900'
+                  : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+              }`}
+            >
+              <Database className="w-3.5 h-3.5" />
+              <span className="hidden md:inline">ตั้งค่าฐานข้อมูล</span>
+            </button>
+          </div>
         </div>
       </header>
 
@@ -1858,7 +1860,7 @@ export default function App() {
       )}
 
       {/* Main Content Container */}
-      <main className="flex-1 w-full px-3 sm:px-6 py-4">
+      <main className="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 py-5">
         <>
           {activeTab === 'external' && (
               <div className="space-y-5">
